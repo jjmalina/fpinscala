@@ -20,13 +20,13 @@ object Either {
 
   def sequence[E,A](es: List[Either[E,A]]): Either[E,List[A]] = ???
 
-  def mean(xs: IndexedSeq[Double]): Either[String, Double] = 
-    if (xs.isEmpty) 
+  def mean(xs: IndexedSeq[Double]): Either[String, Double] =
+    if (xs.isEmpty)
       Left("mean of empty list!")
-    else 
+    else
       Right(xs.sum / xs.length)
 
-  def safeDiv(x: Int, y: Int): Either[Exception, Int] = 
+  def safeDiv(x: Int, y: Int): Either[Exception, Int] =
     try Right(x / y)
     catch { case e: Exception => Left(e) }
 
