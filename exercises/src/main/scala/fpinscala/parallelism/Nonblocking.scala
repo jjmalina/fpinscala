@@ -6,6 +6,7 @@ import language.implicitConversions
 
 object Nonblocking {
 
+  // 7.10 change A to Either[E, A]
   trait Future[+A] {
     private[parallelism] def apply(k: A => Unit): Unit
   }
