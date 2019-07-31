@@ -128,6 +128,10 @@ trait Stream[+A] {
     }
   }
 
+  // special case of `zipWith`
+  def zip[B](s2: Stream[B]): Stream[(A,B)] =
+    zipWith(s2)((_,_))
+
   /*
   official answer
   zipAll(s).takeWhile(!_._2.isEmpty) forAll {
