@@ -36,6 +36,7 @@ trait Monad[M[_]] extends Functor[M] {
   def map2[A,B,C](ma: M[A], mb: M[B])(f: (A, B) => C): M[C] =
     flatMap(ma)(a => map(mb)(b => f(a, b)))
 
+  // lma.foldRight(unit(List[A]()))((ma, mla) => map2(ma, mla)(_ :: _))
   def sequence[A](lma: List[M[A]]): M[List[A]] = lma match {
     case head :: tl => flatMap(head)(hh => map(sequence(tl))(hh :: _))
     case _ => unit(List[A]())
