@@ -98,7 +98,13 @@ sealed abstract class STArray[S,A](implicit manifest: Manifest[A]) {
   // Turn the array into an immutable list
   def freeze: ST[S,List[A]] = ST(value.toList)
 
-  def fill(xs: Map[Int,A]): ST[S,Unit] = ???
+  def fill(xs: Map[Int,A]): ST[S,Unit] = {
+    xs.foldRight(ST[S,Unit](())) {
+      case ((k, v), b) => {
+        b flatMap (_ => write(k, v))
+      }
+    }
+  }
 
   def swap(i: Int, j: Int): ST[S,Unit] = for {
     x <- read(i)
@@ -124,9 +130,32 @@ object STArray {
 object Immutable {
   def noop[S] = ST[S,Unit](())
 
-  def partition[S](a: STArray[S,Int], l: Int, r: Int, pivot: Int): ST[S,Int] = ???
+  def partition[S](a: STArray[S,Int], l: Int, r: Int, pivot: Int): ST[S,Int] = {
+    for {
+      pivotVal <- a.read(pivot)
+      _ <- a.swap(pivot, r)
+      j <- STRef(l)
+      i <- (l until r).foldLeft(noop[S])((s, i) => for {
+        _ <- s
+        ii <- a.read(i)
+        _ <- if (ii < pivotVal) (for {
+          vj <- j.read
+          _ <- a.swap(ii, vj)
+          _ <- j.write(vj + 1)
+        } yield ()) else noop[S]
+      } yield ())
+      ji <- j.read
+      _ <- a.swap(ji, r)
+    } yield ji
+  }
 
-  def qs[S](a: STArray[S,Int], l: Int, r: Int): ST[S, Unit] = ???
+  def qs[S](a: STArray[S,Int], l: Int, r: Int): ST[S, Unit] = {
+    for {
+      partitionIndex <- partition(a, l, r, l + (l - r) / 2)
+      _ <- qs(a, l, partitionIndex - 1)
+      _ <- qs(a, partitionIndex + 1, r)
+    } yield ()
+  }
 
   def quicksort(xs: List[Int]): List[Int] =
     if (xs.isEmpty) xs else ST.runST(new RunnableST[List[Int]] {
@@ -141,3 +170,21 @@ object Immutable {
 
 import scala.collection.mutable.HashMap
 
+sealed trait STMap[S,K,V] {
+  protected def table: HashMap[K, V]
+  def apply(k: K): ST[S, V] = ST(table(k))
+  def size: ST[S, Int] = ST(table.size)
+  def get(key: K): ST[S, Option[V]] = ST(table.get(key))
+  def +=(elem: (K, V)): ST[S, Unit] = ST(table += elem)
+  def -=(key: K): ST[S, Unit] = ST(table -= key)
+}
+
+object STMap {
+  def empty[S,K,V]: ST[S, STMap[S,K,V]] = ST(new STMap[S,K,V] {
+    val table = HashMap.empty[K,V]
+  })
+
+  def fromMap[S,K,V](map: Map[K,V]): ST[S, STMap[S,K,V]] = ST(new STMap[S,K,V] {
+    val table = (HashMap.newBuilder[K,V] ++= map).result
+  })
+}
